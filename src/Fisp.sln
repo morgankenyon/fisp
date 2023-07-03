@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Fisp.Library", "Fisp.Library\Fisp.Library.fsproj", "{3A5F199E-33BF-435A-AA52-5E3334FD7E72}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Fisp.Runner", "Fisp.Runner\Fisp.Runner.fsproj", "{5C6916F2-6DC7-4AAE-BD42-7F9E40F146F2}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Fisp.Test", "Fisp.Test\Fisp.Test.fsproj", "{6289A969-FE59-4295-9242-DC7149908B2E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3A5F199E-33BF-435A-AA52-5E3334FD7E72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A5F199E-33BF-435A-AA52-5E3334FD7E72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A5F199E-33BF-435A-AA52-5E3334FD7E72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A5F199E-33BF-435A-AA52-5E3334FD7E72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C6916F2-6DC7-4AAE-BD42-7F9E40F146F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C6916F2-6DC7-4AAE-BD42-7F9E40F146F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C6916F2-6DC7-4AAE-BD42-7F9E40F146F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C6916F2-6DC7-4AAE-BD42-7F9E40F146F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6289A969-FE59-4295-9242-DC7149908B2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6289A969-FE59-4295-9242-DC7149908B2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6289A969-FE59-4295-9242-DC7149908B2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6289A969-FE59-4295-9242-DC7149908B2E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
