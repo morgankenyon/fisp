@@ -81,7 +81,11 @@ module Lexer =
         let (tokenType, literal) =
             match l.ch with
             | '+' -> (TokenType.PLUS, l.ch.ToString())
-            // | '-' -> (TokenType.MINUS, l.ch.ToString())
+            | '-' -> (TokenType.MINUS, l.ch.ToString())
+            | '*' -> (TokenType.ASTERISK, l.ch.ToString())
+            | '/' -> (TokenType.SLASH, l.ch.ToString())
+            | '(' -> (TokenType.LPAREN, l.ch.ToString())
+            | ')' -> (TokenType.RPAREN, l.ch.ToString())
             // | '!' ->
             //     let nextChar = peekChar l
             //     match nextChar with
@@ -90,14 +94,10 @@ module Lexer =
             //         readChar l
             //         (TokenType.NOT_EQ, ch.ToString() + l.ch.ToString())
             //     | _ -> (TokenType.BANG, l.ch.ToString())
-            // | '*' -> (TokenType.ASTERISK, l.ch.ToString())
-            // | '/' -> (TokenType.SLASH, l.ch.ToString())
             // | '<' -> (TokenType.LT, l.ch.ToString())
             // | '>' -> (TokenType.GT, l.ch.ToString())
             // | ',' -> (TokenType.COMMA, l.ch.ToString())
             // | ';' -> (TokenType.SEMICOLON, l.ch.ToString())
-            // | '(' -> (TokenType.LPAREN, l.ch.ToString())
-            // | ')' -> (TokenType.RPAREN, l.ch.ToString())
             // | '{' -> (TokenType.LBRACE, l.ch.ToString())
             // | '}' -> (TokenType.RBRACE, l.ch.ToString())
             // | '[' -> (TokenType.LBRACKET, l.ch.ToString())
@@ -130,3 +130,17 @@ module Lexer =
             keepLexing <- newToken.TokenType <> TokenType.EOF
 
         tokens.ToArray()
+
+module Parser = 
+    open Lexer
+    type ParserState = 
+        {
+            lexer : Lexer.LexerState
+            mutable curToken : Token
+            mutable peekToken : Token
+            mutable errors : ResizeArray<string> //TODO - maybe change to option type??
+            // prefixParseFns : System.Collections.Generic.Dictionary<TokenType, prefixParse>
+            // infixParseFns : System.Collections.Generic.Dictionary<TokenType, infixParse>
+        }
+
+    
