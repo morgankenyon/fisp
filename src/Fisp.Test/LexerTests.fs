@@ -110,3 +110,17 @@ let ``Can lex complex expression`` () =
         ]
 
     canAssertLexing input expectedTokensRaw
+
+// [<Fact>]
+// let ``Can lex addition with doubles`` () =
+//     let input = "+ 5.0 5.0"
+
+//     let expectedTokensRaw:(TokenType * string) list =
+//         [
+//             (TokenType.PLUS, "+");
+//             (TokenType.DOUBLE, "5.0");
+//             (TokenType.DOUBLE, "5.0");
+//             (TokenType.EOF, "");
+//         ]
+
+//     canAssertLexing input expectedTokensRaw

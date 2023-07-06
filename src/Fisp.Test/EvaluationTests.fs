@@ -28,7 +28,17 @@ let ``Can test integer values`` input expected =
 [<Theory>]
 [<InlineData("+ 5 10", 15)>]
 [<InlineData("+ (+ 5 10) (+ 15 20))", 50)>]
-let ``Can test simple addition`` input expected =
+[<InlineData("* 5 10", 50)>]
+[<InlineData("(* 5 10)", 50)>]
+[<InlineData("* (* 5 10) (* 15 20))", 15000)>]
+[<InlineData("- 5 10", -5)>]
+[<InlineData("(- 5 10)", -5)>]
+[<InlineData("- (- 100 10) (- 15 20))", 95)>]
+[<InlineData("/ 10 5", 2)>]
+[<InlineData("(/ 10 5)", 2)>]
+[<InlineData("/ (/ 100 5) (/ 30 15))", 10)>]
+[<InlineData("(+ (/ 20 2) (* 5 5) (- 10 5))", 40)>]
+let ``Can test integer formulas`` input expected =
     let result = evaluate input
 
     match result with

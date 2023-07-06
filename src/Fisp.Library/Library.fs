@@ -293,6 +293,9 @@ module Parser =
 
         let prefixFns = new System.Collections.Generic.Dictionary<TokenType, prefixParse>()
         prefixFns.Add(TokenType.PLUS, parsePrefixExpression)
+        prefixFns.Add(TokenType.MINUS, parsePrefixExpression)
+        prefixFns.Add(TokenType.ASTERISK, parsePrefixExpression)
+        prefixFns.Add(TokenType.SLASH, parsePrefixExpression)
         prefixFns.Add(TokenType.INT, parseIntegerLiteral)
         // prefixFns.Add(TokenType.INT, parseIntegerLiteral)
         // prefixFns.Add(TokenType.BANG, parsePrefixExpression)
@@ -371,13 +374,35 @@ module Evaluation =
             results.Add(result)
             ()
         
-        let mutable running = 0
+        let mutable running = 
+            match operator with
+            | "+" -> 0
+            | "-" -> 0
+            | "*" -> 1
+            | "/" -> 1
+            | _ -> 0 //return error instead of 0 since we don't want bad operators
+
+        let mutable isFirstLoop = true
         for re in results do 
             match operator, re with 
             | "+", Int32Obj num ->
                 running <- running + num.value
                 ()
+            | "*", Int32Obj num ->
+                running <- running * num.value
+            | "-", Int32Obj num ->
+                if isFirstLoop then
+                    running <- num.value
+                else
+                    running <- running - num.value
+            | "/", Int32Obj num ->
+                if isFirstLoop then
+                    running <- num.value
+                else
+                    running <- running / num.value
             | _ -> ()
+
+            isFirstLoop <- false //hacky mechanism
         
         Int32Obj { value = running }
     
