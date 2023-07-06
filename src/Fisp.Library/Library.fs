@@ -131,16 +131,264 @@ module Lexer =
 
         tokens.ToArray()
 
+module Ast =
+    open Lexer
+    type Integer32 = 
+        {
+            token: Token;
+            value: int32
+        }
+    and PrefixExpression = 
+        {
+            token: Token;
+            operator: string;
+            values: AstExpr[]
+        }
+    // and ExpressionStatement(token: Token, expression: AstExpr) =
+    //     member this.token = token
+    //     member this.expression = expression
+    and Program =
+        {
+            expressions: AstExpr[]
+        }
+    and AstExpr =
+    | Int32 of Integer32
+    | PrefixExpr of PrefixExpression
+    | Program of Program
+
 module Parser = 
     open Lexer
-    type ParserState = 
+    open Ast
+
+    type ExprPrecedence =
+    | LOWEST = 1
+    | EQUALS = 2
+    | LESSGREATER = 3
+    | SUM = 4
+    | PRODUCT = 5
+    | PREFIX = 6
+    | CALL = 7
+    | INDEX = 8
+
+    let PrecedenceMap =
+        Map.empty
+            // .Add(TokenType.EQ, ExprPrecedence.EQUALS)
+            // .Add(TokenType.NOT_EQ, ExprPrecedence.EQUALS)
+            // .Add(TokenType.LT, ExprPrecedence.LESSGREATER)
+            // .Add(TokenType.GT, ExprPrecedence.LESSGREATER)
+            .Add(TokenType.PLUS, ExprPrecedence.SUM)
+            .Add(TokenType.MINUS, ExprPrecedence.SUM)
+            .Add(TokenType.SLASH, ExprPrecedence.PRODUCT)
+            .Add(TokenType.ASTERISK, ExprPrecedence.PRODUCT)
+            .Add(TokenType.LPAREN, ExprPrecedence.CALL)
+            // .Add(TokenType.LBRACKET, ExprPrecedence.INDEX)
+    
+    type prefixParse = ParserState -> AstExpr option
+    and ParserState = 
         {
             lexer : Lexer.LexerState
             mutable curToken : Token
             mutable peekToken : Token
             mutable errors : ResizeArray<string> //TODO - maybe change to option type??
-            // prefixParseFns : System.Collections.Generic.Dictionary<TokenType, prefixParse>
-            // infixParseFns : System.Collections.Generic.Dictionary<TokenType, infixParse>
+            prefixParseFns : System.Collections.Generic.Dictionary<TokenType, prefixParse>
         }
 
+    let nextToken (p: ParserState) =
+        p.curToken <- p.peekToken
+        p.peekToken <- Lexer.nextToken p.lexer
+
+    let curTokenIs (p: ParserState) (t: TokenType) =
+        p.curToken.TokenType = t
+
+    let peekTokenIs (p: ParserState) (t: TokenType) =
+        p.peekToken.TokenType = t
+
+    let peekError (p: ParserState) (t: TokenType) =
+        let msg = sprintf "expected next token to be %s, got %s instead" (t.ToString()) (p.peekToken.TokenType.ToString())
+        p.errors.Add(msg)
+
+    let expectPeek (p: ParserState) (t: TokenType) =
+        match peekTokenIs p t with
+        | true -> 
+            nextToken p 
+            true
+        | false -> 
+            peekError p t
+            false
     
+    let getTokenPrecedence tokenType =
+        match PrecedenceMap.ContainsKey tokenType with
+        | true ->
+            PrecedenceMap.[tokenType]
+        | false -> 
+            ExprPrecedence.LOWEST
+
+    let peekPrecedence p =
+        getTokenPrecedence p.peekToken.TokenType
+
+    let curPrecedence p =
+        getTokenPrecedence p.curToken.TokenType
+
+    let notRParen (p: ParserState) = 
+        not (peekTokenIs p TokenType.RPAREN)
+    
+    let notEOF (p: ParserState) =
+        not (peekTokenIs p TokenType.EOF)
+    
+    let notEOFAndRParen (p: ParserState) =
+        notRParen p && notEOF p
+
+    let parseIntegerLiteral p =
+        match System.Int32.TryParse p.curToken.Literal with
+        | true, l ->
+            Int32 { token = p.curToken; value = l}
+            |> Some
+        | _ ->
+            let errorMsg = sprintf "could not parse %s as integer" p.curToken.Literal
+            p.errors.Add(errorMsg)
+            None
+    
+    let parseExpression (p: ParserState) (precedence: ExprPrecedence) =
+        match p.prefixParseFns.ContainsKey p.curToken.TokenType with
+        | true ->
+            let prefix = p.prefixParseFns.[p.curToken.TokenType]
+            prefix p
+        | false ->
+            p.errors.Add(sprintf "no prefix parse function for %s found" p.curToken.Literal)
+            None
+
+    let parseGroupedExpression p =
+        nextToken p
+
+        match parseExpression p ExprPrecedence.LOWEST with
+        | Some expression ->
+            if not (expectPeek p TokenType.RPAREN) then None
+            else Some expression
+        | None -> None
+
+    let parseBaseExpression (p: ParserState) =
+        parseExpression p ExprPrecedence.LOWEST
+    
+    let parsePrefixExpression (p: ParserState) : AstExpr option =
+        let values = ResizeArray<AstExpr>()
+        let curToken = p.curToken
+
+        while notEOFAndRParen p do
+            nextToken p
+            let precedence = curPrecedence p
+            
+            match parseExpression p precedence with
+            | Some v ->
+                values.Add v
+                ()
+            | None ->
+                ()
+
+        PrefixExpr { token = curToken; operator = curToken.Literal; values = values.ToArray() }
+        |> Some
+            
+    let createParser lexer =
+        let firstToken = Lexer.nextToken lexer
+        let secondToken = Lexer.nextToken lexer
+
+        let prefixFns = new System.Collections.Generic.Dictionary<TokenType, prefixParse>()
+        prefixFns.Add(TokenType.PLUS, parsePrefixExpression)
+        prefixFns.Add(TokenType.INT, parseIntegerLiteral)
+        // prefixFns.Add(TokenType.INT, parseIntegerLiteral)
+        // prefixFns.Add(TokenType.BANG, parsePrefixExpression)
+        // prefixFns.Add(TokenType.MINUS, parsePrefixExpression)
+        // prefixFns.Add(TokenType.TRUE, parseBoolean)
+        // prefixFns.Add(TokenType.FALSE, parseBoolean)
+        prefixFns.Add(TokenType.LPAREN, parseGroupedExpression)
+        // prefixFns.Add(TokenType.IF, parseIfExpression)
+        // prefixFns.Add(TokenType.FUNCTION, parseFunctionLiteral)
+        // prefixFns.Add(TokenType.STRING, parseStringLiteral)
+        // prefixFns.Add(TokenType.LBRACKET, parseArrayLiteral)
+        // prefixFns.Add(TokenType.LBRACE, parseHashLiteral)
+
+        let parser = 
+            { 
+                lexer = lexer
+                curToken = firstToken
+                peekToken = secondToken
+                errors = new ResizeArray<string>()
+                prefixParseFns = prefixFns
+            }
+
+        parser
+
+    let parseProgram (parser: ParserState) : Ast.AstExpr =
+        let parsedExpressions = new ResizeArray<AstExpr>()
+
+        while not (curTokenIs parser TokenType.EOF) do
+            match parseBaseExpression parser with
+            | Some expr -> 
+                parsedExpressions.Add(expr)
+            | None -> ()
+
+            nextToken parser
+
+        let exprArray = parsedExpressions.ToArray()
+
+        Program { expressions = exprArray }
+
+    let parse lexer =
+        createParser lexer
+        |> parseProgram
+
+module Objs =
+    type Integer32 =
+        {
+            value: int32
+        }
+    and Objects =
+    | Int32Obj of Integer32
+
+module Evaluation =
+    open Objs
+
+    let rec eval (expr: Ast.AstExpr) =
+        match expr with
+        | Ast.Int32 i32 ->
+            Int32Obj { value = i32.value }
+        | Ast.PrefixExpr pe ->
+            evalPrefixExpr pe
+        | Ast.Program program ->
+            evalProgram program
+    
+    and evalPrefixExpr (pe: Ast.PrefixExpression) =
+        let operator = pe.operator
+
+        let results = new ResizeArray<Objs.Objects>()
+        
+        for v in pe.values do
+            let result = eval v
+            results.Add(result)
+            ()
+        
+        let mutable running = 0
+        for re in results do 
+            match operator, re with 
+            | "+", Int32Obj num ->
+                running <- running + num.value
+                ()
+            | _ -> ()
+        
+        Int32Obj { value = running }
+    
+    and evalProgram program =
+        //this is junky, find a better way to only return the last one
+        let results = new ResizeArray<Objs.Objects>()
+
+        //if error, add early return step, check monkey
+        for expr in program.expressions do 
+            results.Add(eval expr)
+            ()
+        
+        results.[results.Count - 1]
+
+
+
+    let evaluate (expr: Ast.AstExpr) =
+        //will add environment at some point
+        eval expr

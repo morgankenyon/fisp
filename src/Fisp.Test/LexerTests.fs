@@ -1,4 +1,4 @@
-module Tests
+module LexerTests
 
 open Xunit
 open Fisp.Library
