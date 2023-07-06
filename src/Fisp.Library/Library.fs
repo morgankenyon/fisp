@@ -344,6 +344,11 @@ module Objs =
     and Objects =
     | Int32Obj of Integer32
 
+    let printObj (obj: Objects) =
+        match obj with
+        | Int32Obj int ->
+            sprintf "%d" int.value
+
 module Evaluation =
     open Objs
 

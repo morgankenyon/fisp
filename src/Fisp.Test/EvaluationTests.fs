@@ -27,6 +27,7 @@ let ``Can test integer values`` input expected =
 
 [<Theory>]
 [<InlineData("+ 5 10", 15)>]
+[<InlineData("+ (+ 5 10) (+ 15 20))", 50)>]
 let ``Can test simple addition`` input expected =
     let result = evaluate input
 
