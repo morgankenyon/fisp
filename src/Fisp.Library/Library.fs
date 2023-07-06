@@ -7,6 +7,7 @@ module Lexer =
         | EOF
         //literals
         | INT
+        | DOUBLE
         //operators
         | PLUS
         | MINUS
@@ -43,6 +44,10 @@ module Lexer =
         l.readPosition <- l.readPosition + 1
         l.ch <- newChar
     
+    let peekNextCharIs (l: LexerState) testChar =
+        let canReadNextPosition = l.position + 1 < l.input.Length
+        canReadNextPosition && l.input.Chars(l.position + 1) = testChar
+
     let isDigit(ch: char) =
         ch.CompareTo('0') >= 0 && ch.CompareTo('9') <= 0
 
@@ -61,8 +66,16 @@ module Lexer =
         let pos = l.position
         while canReadDigit(l) do 
             readChar l
-        let literal = l.input.Substring(pos, (l.position - pos + 1))
-        (INT, literal)
+
+        if peekNextCharIs l '.' then
+            readChar l
+            while canReadDigit(l) do
+                readChar l
+            let double = l.input.Substring(pos, (l.position - pos + 1))
+            (DOUBLE, double)
+        else   
+            let literal = l.input.Substring(pos, (l.position - pos + 1))
+            (INT, literal)
 
     let nextComplexToken(l: LexerState) =
         match findComplexTokenType(l) with 
@@ -138,6 +151,11 @@ module Ast =
             token: Token;
             value: int32
         }
+    type Double =
+        {
+            token: Token;
+            value: double
+        }
     and PrefixExpression = 
         {
             token: Token;
@@ -155,6 +173,7 @@ module Ast =
     | Int32 of Integer32
     | PrefixExpr of PrefixExpression
     | Program of Program
+    | Double of Double
 
 module Parser = 
     open Lexer
@@ -247,6 +266,16 @@ module Parser =
             let errorMsg = sprintf "could not parse %s as integer" p.curToken.Literal
             p.errors.Add(errorMsg)
             None
+
+    let parseDoubleLiteral p =
+        match System.Double.TryParse p.curToken.Literal with
+        | true, l ->
+            Double { token = p.curToken; value = l}
+            |> Some
+        | _ ->
+            let errorMsg = sprintf "could not parse %s as double" p.curToken.Literal
+            p.errors.Add(errorMsg)
+            None
     
     let parseExpression (p: ParserState) (precedence: ExprPrecedence) =
         match p.prefixParseFns.ContainsKey p.curToken.TokenType with
@@ -297,7 +326,7 @@ module Parser =
         prefixFns.Add(TokenType.ASTERISK, parsePrefixExpression)
         prefixFns.Add(TokenType.SLASH, parsePrefixExpression)
         prefixFns.Add(TokenType.INT, parseIntegerLiteral)
-        // prefixFns.Add(TokenType.INT, parseIntegerLiteral)
+        prefixFns.Add(TokenType.DOUBLE, parseDoubleLiteral)
         // prefixFns.Add(TokenType.BANG, parsePrefixExpression)
         // prefixFns.Add(TokenType.MINUS, parsePrefixExpression)
         // prefixFns.Add(TokenType.TRUE, parseBoolean)
@@ -344,36 +373,25 @@ module Objs =
         {
             value: int32
         }
+    type Double =
+        {
+            value: double
+        }
     and Objects =
     | Int32Obj of Integer32
+    | DoubleObj of Double
 
     let printObj (obj: Objects) =
         match obj with
         | Int32Obj int ->
             sprintf "%d" int.value
+        | DoubleObj dbl ->
+            sprintf "%f" dbl.value
 
 module Evaluation =
     open Objs
 
-    let rec eval (expr: Ast.AstExpr) =
-        match expr with
-        | Ast.Int32 i32 ->
-            Int32Obj { value = i32.value }
-        | Ast.PrefixExpr pe ->
-            evalPrefixExpr pe
-        | Ast.Program program ->
-            evalProgram program
-    
-    and evalPrefixExpr (pe: Ast.PrefixExpression) =
-        let operator = pe.operator
-
-        let results = new ResizeArray<Objs.Objects>()
-        
-        for v in pe.values do
-            let result = eval v
-            results.Add(result)
-            ()
-        
+    let evalIntegerPrefixes operator results =
         let mutable running = 
             match operator with
             | "+" -> 0
@@ -405,6 +423,119 @@ module Evaluation =
             isFirstLoop <- false //hacky mechanism
         
         Int32Obj { value = running }
+
+    let evalDoublePrefixes op results =
+        let mutable running = 
+            match op with
+            | "+" -> 0.0
+            | "-" -> 0.0
+            | "*" -> 1.0
+            | "/" -> 1.0
+            | _ -> 0.0 //return error instead of 0 since we don't want bad operators
+
+        let firstMinusArg isFirst run num  =
+            if isFirst then
+                num
+            else
+                run - num
+
+        let firstDivideArg isFirst run num =
+            if isFirst then
+                num
+            else
+                run / num
+
+        let mutable isFirstLoop = true
+        for re in results do 
+            match op, re with 
+            | "+", DoubleObj num ->
+                running <- running + num.value
+            | "+", Int32Obj num ->
+                running <- running + (double)num.value
+            | "*", DoubleObj num ->
+                running <- running * num.value
+            | "*", Int32Obj num ->
+                running <- running * (double)num.value
+            | "-", DoubleObj num -> 
+                running <- firstMinusArg isFirstLoop running num.value
+            | "-", Int32Obj num -> 
+                let dblNum = (double) num.value
+                running <- firstMinusArg isFirstLoop running dblNum
+            | "/", DoubleObj num -> 
+                running <- firstDivideArg isFirstLoop running num.value
+            | "/", Int32Obj num -> 
+                let dblNum = (double) num.value
+                running <- firstDivideArg isFirstLoop running dblNum
+            | _ -> ()
+
+            isFirstLoop <- false //hacky mechanism
+        
+        DoubleObj { value = running }
+
+    let rec eval (expr: Ast.AstExpr) =
+        match expr with
+        | Ast.Int32 i32 ->
+            Int32Obj { value = i32.value }
+        | Ast.Double dbl ->
+            DoubleObj { value = dbl.value }
+        | Ast.PrefixExpr pe ->
+            evalPrefixExpr pe
+        | Ast.Program program ->
+            evalProgram program
+    
+    and evalPrefixExpr (pe: Ast.PrefixExpression) =
+        let results = new ResizeArray<Objs.Objects>()
+        
+        let mutable hasDouble = false
+        for v in pe.values do
+            let result = eval v
+
+            match result with
+            | DoubleObj dbl ->
+                hasDouble <- true
+                ()
+            | _ -> ()
+
+            results.Add(result)
+            ()
+
+        if hasDouble then
+            evalDoublePrefixes pe.operator results
+        else
+            evalIntegerPrefixes pe.operator results
+        //determine whether list has doubles or ints
+        
+        // let mutable running = 
+        //     match operator with
+        //     | "+" -> 0
+        //     | "-" -> 0
+        //     | "*" -> 1
+        //     | "/" -> 1
+        //     | _ -> 0 //return error instead of 0 since we don't want bad operators
+
+        // let mutable isFirstLoop = true
+        // for re in results do 
+        //     match operator, re with 
+        //     | "+", Int32Obj num ->
+        //         running <- running + num.value
+        //         ()
+        //     | "*", Int32Obj num ->
+        //         running <- running * num.value
+        //     | "-", Int32Obj num ->
+        //         if isFirstLoop then
+        //             running <- num.value
+        //         else
+        //             running <- running - num.value
+        //     | "/", Int32Obj num ->
+        //         if isFirstLoop then
+        //             running <- num.value
+        //         else
+        //             running <- running / num.value
+        //     | _ -> ()
+
+        //     isFirstLoop <- false //hacky mechanism
+        
+        // Int32Obj { value = running }
     
     and evalProgram program =
         //this is junky, find a better way to only return the last one

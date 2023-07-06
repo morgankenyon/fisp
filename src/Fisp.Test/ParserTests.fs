@@ -16,6 +16,12 @@ let assertInt32 expected (expr: Ast.AstExpr) =
         Assert.Equal(expected, i32.value)
     | _ -> Assert.True(false, "Expecting Int32, got different type")
 
+let assertDouble expected (expr: Ast.AstExpr) =
+    match expr with
+    | Ast.Double dbl ->
+        Assert.Equal(expected, dbl.value)
+    | _ -> Assert.True(false, "Expecting Int32, got different type")
+
 let isPrefixExpr (expr: Ast.AstExpr) =
     match expr with
     | Ast.PrefixExpr pe -> true
@@ -32,6 +38,19 @@ let assert2aryIntPrefixExpr (expr: Ast.AstExpr) operator firstNum secondNum =
 
         assertInt32 firstNum first
         assertInt32 secondNum second
+
+    | _ -> Assert.True(false, "Wrong expression type returned from test")
+let assert2aryDoublePrefixExpr (expr: Ast.AstExpr) operator firstNum secondNum =
+    match expr with
+    | Ast.PrefixExpr pe ->
+        Assert.Equal(operator, pe.operator)
+        Assert.Equal(2, pe.values.Length)
+
+        let first = pe.values.[0]
+        let second = pe.values.[1]
+
+        assertDouble firstNum first
+        assertDouble secondNum second
 
     | _ -> Assert.True(false, "Wrong expression type returned from test")
 
@@ -66,23 +85,11 @@ let canAssertBasicItems input =
 [<InlineData("- 5 10", "-", 5, 10)>]
 [<InlineData("* 5 10", "*", 5, 10)>]
 [<InlineData("/ 5 10", "/", 5, 10)>]
-let ``Can parse simple plus expression`` input op firstNum secondNum =
+let ``Can parse simple arithmetic expression`` input op firstNum secondNum =
     let expression = canAssertBasicItems input
 
     assert2aryIntPrefixExpr expression op firstNum secondNum
 
-    // match expression with
-    // | Ast.PrefixExpr pe ->
-    //     Assert.Equal(op, pe.operator)
-    //     Assert.Equal(2, pe.values.Length)
-
-    //     let first = pe.values.[0]
-    //     let second = pe.values.[1]
-
-    //     assertInt32 firstNum first
-    //     assertInt32 secondNum second
-    // | _ -> Assert.True(false, "Wrong expression type returned from test")
-    
 [<Fact>]
 let ``Can parse more complex plus expression`` () =
     let input = "+ 5 10 15 20"
@@ -174,3 +181,13 @@ let ``Can handle multi type grouped expression`` () =
         assert2aryIntPrefixExpr secondSubGroup "/" 15 20
 
     | _ -> Assert.True(false, "Wrong expression type returned from test")
+
+[<Theory>]
+[<InlineData("+ 23.78 33.58", "+", 23.78, 33.58)>]
+[<InlineData("- 88.14 67.32", "-", 88.14, 67.32)>]
+[<InlineData("* 202.11 600.22", "*", 202.11, 600.22)>]
+[<InlineData("/ 2344.288 9299.22", "/", 2344.288, 9299.22)>]
+let ``Can parse simple double expression`` input op firstNum secondNum =
+    let expression = canAssertBasicItems input
+
+    assert2aryDoublePrefixExpr expression op firstNum secondNum
