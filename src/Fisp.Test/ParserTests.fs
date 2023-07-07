@@ -22,6 +22,18 @@ let assertDouble expected (expr: Ast.AstExpr) =
         Assert.Equal(expected, dbl.value)
     | _ -> Assert.True(false, "Expecting Int32, got different type")
 
+let assertBoolean expected (expr: Ast.AstExpr) =
+    match expr with
+    | Ast.Boolean bol ->
+        Assert.Equal(expected, bol.value)
+    | _ -> Assert.True(false, "Expecting Boolean, got different type")
+
+let assertString expected (expr: Ast.AstExpr) =
+    match expr with
+    | Ast.String str ->
+        Assert.Equal(expected, str.value)
+    | _ -> Assert.True(false, "Expecting String, got different type")
+
 let isPrefixExpr (expr: Ast.AstExpr) =
     match expr with
     | Ast.PrefixExpr pe -> true
@@ -79,6 +91,13 @@ let canAssertBasicItems input =
     | _ -> 
         Assert.True(false, "Returned a different type from parseProgram")
         program
+
+let canAssertParserErrorsPresent input =
+    let lexer = createLexer input
+    let parser = createParser lexer
+    let program = parseProgram parser
+
+    Assert.False(0 = parser.errors.Count, "Was expecting errors from expressions, but none present")
 
 [<Theory>]
 [<InlineData("+ 5 10", "+", 5, 10)>]
@@ -191,3 +210,33 @@ let ``Can parse simple double expression`` input op firstNum secondNum =
     let expression = canAssertBasicItems input
 
     assert2aryDoublePrefixExpr expression op firstNum secondNum
+
+[<Theory>]
+[<InlineData("#t", true)>]
+[<InlineData("#f", false)>]
+let ``Can parse boolean literals`` input expected =
+    let expression = canAssertBasicItems input
+
+    assertBoolean expected expression
+
+[<Theory>]
+[<InlineData("< 2 3", "<", 2, 3)>]
+[<InlineData("> 2 3", ">", 2, 3)>]
+let ``Can parse comparison operators`` input op first second =
+    let expr = canAssertBasicItems input
+
+    assert2aryIntPrefixExpr expr op first second
+
+[<Theory>]
+[<InlineData("< 2 3 5")>]
+[<InlineData("> 2 3 5")>]
+let ``Can ensure comparison operators only have 2 expressions`` input =
+    canAssertParserErrorsPresent input
+
+[<Fact>]
+let ``Can parse string`` () =
+    let input = "\"Hello world\""
+
+    let expr = canAssertBasicItems input
+
+    assertString "Hello world" expr

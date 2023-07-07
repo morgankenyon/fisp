@@ -17,7 +17,12 @@ let assertToken (expectedToken: Token) (actualToken: Token) =
     ()
 
 let assertLexedTokens (expectedTokens: Token[]) (actualTokens: Token[]) = 
-    Assert.Equal(expectedTokens.Length, actualTokens.Length)
+    let actualTokenMsg = 
+        actualTokens
+        |> Array.map (fun t -> t.TokenType.ToString())
+        |> Array.reduce (fun a b -> sprintf "%s %s" a b)
+
+    Assert.True(expectedTokens.Length = actualTokens.Length, actualTokenMsg)
 
     Array.zip expectedTokens actualTokens
     |> Array.iter (fun (et, at) -> assertToken et at)
@@ -139,3 +144,84 @@ let ``Can lex multiple addition with doubles`` () =
         ]
 
     canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can lex true`` () =
+    let input = "#t"
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (TokenType.TRUE, "#t");
+            (TokenType.EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can lex false`` () =
+    let input = "#f"
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (TokenType.FALSE, "#f");
+            (TokenType.EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can let less than`` () =
+    let input = "(< 2 3)"
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (LPAREN, "(");
+            (LT, "<");
+            (INT, "2");
+            (INT, "3");
+            (RPAREN, ")");
+            (EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can let greater than`` () =
+    let input = "(> 2 3)"
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (LPAREN, "(");
+            (GT, ">");
+            (INT, "2");
+            (INT, "3");
+            (RPAREN, ")");
+            (EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can lex strings`` () =
+    let input = "\"Hello world\""
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (STRING, "Hello world");
+            (EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+
+[<Fact>]
+let ``Can lex escaped string`` () =
+    let input = "\"Hello \"world\"\""
+
+    let expectedTokensRaw:(TokenType * string) list =
+        [
+            (STRING, "Hello \"world\"");
+            (EOF, "");
+        ]
+
+    canAssertLexing input expectedTokensRaw
+

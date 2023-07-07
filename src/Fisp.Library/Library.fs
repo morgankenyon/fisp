@@ -8,11 +8,16 @@ module Lexer =
         //literals
         | INT
         | DOUBLE
+        | TRUE
+        | FALSE
+        | STRING
         //operators
         | PLUS
         | MINUS
         | ASTERISK
         | SLASH
+        | LT
+        | GT
         //delimiters
         | LPAREN
         | RPAREN
@@ -20,6 +25,7 @@ module Lexer =
     type ComplexTokenType =
         | Digit
         | Illegal
+        | Hash
     
     type Token =
         {
@@ -48,12 +54,20 @@ module Lexer =
         let canReadNextPosition = l.position + 1 < l.input.Length
         canReadNextPosition && l.input.Chars(l.position + 1) = testChar
 
+    let isCharEOF (l: LexerState) =
+        l.ch = '\000'
+
     let isDigit(ch: char) =
         ch.CompareTo('0') >= 0 && ch.CompareTo('9') <= 0
+    
+    let isHash(ch: char) =
+        ch = '#'
 
     let findComplexTokenType l =
         if isDigit(l.ch) then
             Digit
+        else if isHash(l.ch) then
+            Hash
         else
             Illegal
 
@@ -61,6 +75,15 @@ module Lexer =
         //ensure I can read next position
         let canReadNextPosition = l.position + 1 < l.input.Length
         canReadNextPosition && isDigit(l.input.Chars(l.position + 1)) 
+    
+    let readString (l: LexerState) =
+        let startPosition = l.position + 1
+        
+        readChar l
+        while l.ch <> '"' && l.ch <> '\000' do
+            readChar l
+
+        l.input.Substring(startPosition, l.position - startPosition)
 
     let readNumber(l: LexerState) =
         let pos = l.position
@@ -76,10 +99,27 @@ module Lexer =
         else   
             let literal = l.input.Substring(pos, (l.position - pos + 1))
             (INT, literal)
+    
+    let notHitWhitespace (l: LexerState) =
+        l.ch <> ' '
+        
+    let readHash(l: LexerState) =
+        let pos = l.position
+
+        while notHitWhitespace(l) && not (isCharEOF l) do
+            readChar l
+        
+        let literal = l.input.Substring(pos, (l.position - pos))
+
+        match literal with
+        | "#t" -> (TRUE, literal)
+        | "#f" -> (FALSE, literal)
+        | _ -> (ILLEGAL, literal)
 
     let nextComplexToken(l: LexerState) =
         match findComplexTokenType(l) with 
         | Digit -> readNumber(l)
+        | Hash -> readHash(l)
         | Illegal -> (TokenType.ILLEGAL, l.ch.ToString())
 
     let skipWhitespace(l: LexerState) =
@@ -99,6 +139,11 @@ module Lexer =
             | '/' -> (TokenType.SLASH, l.ch.ToString())
             | '(' -> (TokenType.LPAREN, l.ch.ToString())
             | ')' -> (TokenType.RPAREN, l.ch.ToString())
+            | '<' -> (TokenType.LT, l.ch.ToString())
+            | '>' -> (TokenType.GT, l.ch.ToString())
+            | '"' -> 
+                let literal = readString l
+                (TokenType.STRING, literal)
             // | '!' ->
             //     let nextChar = peekChar l
             //     match nextChar with
@@ -107,8 +152,6 @@ module Lexer =
             //         readChar l
             //         (TokenType.NOT_EQ, ch.ToString() + l.ch.ToString())
             //     | _ -> (TokenType.BANG, l.ch.ToString())
-            // | '<' -> (TokenType.LT, l.ch.ToString())
-            // | '>' -> (TokenType.GT, l.ch.ToString())
             // | ',' -> (TokenType.COMMA, l.ch.ToString())
             // | ';' -> (TokenType.SEMICOLON, l.ch.ToString())
             // | '{' -> (TokenType.LBRACE, l.ch.ToString())
@@ -116,9 +159,6 @@ module Lexer =
             // | '[' -> (TokenType.LBRACKET, l.ch.ToString())
             // | ']' -> (TokenType.RBRACKET, l.ch.ToString())
             // | ':' -> (TokenType.COLON, l.ch.ToString())
-            // | '"' -> 
-            //     let literal = readString l
-            //     (TokenType.STRING, literal)
             | '\000' -> (TokenType.EOF, "")
             | _ -> nextComplexToken l
 
@@ -156,6 +196,16 @@ module Ast =
             token: Token;
             value: double
         }
+    type Boolean =
+        {
+            token: Token;
+            value: bool
+        }
+    type Str =
+        {
+            token: Token
+            value: string
+        }
     and PrefixExpression = 
         {
             token: Token;
@@ -174,6 +224,8 @@ module Ast =
     | PrefixExpr of PrefixExpression
     | Program of Program
     | Double of Double
+    | Boolean of Boolean
+    | String of Str
 
 module Parser = 
     open Lexer
@@ -277,6 +329,23 @@ module Parser =
             p.errors.Add(errorMsg)
             None
     
+    let parseBooleanLiteral p =
+        match p.curToken.Literal with
+        | "#t" ->
+            Boolean { token = p.curToken; value = true }
+            |> Some
+        | "#f" ->
+            Boolean { token = p.curToken; value = false }
+            |> Some
+        | _ ->
+            let errorMsg = sprintf "could not parse %s as boolean" p.curToken.Literal
+            p.errors.Add(errorMsg)
+            None
+    
+    let parseStringLiteral p =
+        String { token = p.curToken; value = p.curToken.Literal }
+        |> Some
+
     let parseExpression (p: ParserState) (precedence: ExprPrecedence) =
         match p.prefixParseFns.ContainsKey p.curToken.TokenType with
         | true ->
@@ -297,6 +366,7 @@ module Parser =
 
     let parseBaseExpression (p: ParserState) =
         parseExpression p ExprPrecedence.LOWEST
+
     
     let parsePrefixExpression (p: ParserState) : AstExpr option =
         let values = ResizeArray<AstExpr>()
@@ -315,6 +385,26 @@ module Parser =
 
         PrefixExpr { token = curToken; operator = curToken.Literal; values = values.ToArray() }
         |> Some
+
+    let parse2aryPrefixExpression (p: ParserState) : AstExpr option =
+        let prefix = parsePrefixExpression p
+
+        match prefix with
+        | Some pre ->
+            match pre with
+            | AstExpr.PrefixExpr pe ->
+                if pe.values.Length <> 2 then
+                    let errorMsg = sprintf "%s operator can only have two expressions, but %d given." pe.operator pe.values.Length
+                    p.errors.Add(errorMsg)
+                    None
+                else 
+                    prefix
+            | _ ->
+                let errorMsg = sprintf "Was expecting prefix expression"
+                p.errors.Add(errorMsg)
+                None
+        | None ->
+            None
             
     let createParser lexer =
         let firstToken = Lexer.nextToken lexer
@@ -329,12 +419,16 @@ module Parser =
         prefixFns.Add(TokenType.DOUBLE, parseDoubleLiteral)
         // prefixFns.Add(TokenType.BANG, parsePrefixExpression)
         // prefixFns.Add(TokenType.MINUS, parsePrefixExpression)
-        // prefixFns.Add(TokenType.TRUE, parseBoolean)
-        // prefixFns.Add(TokenType.FALSE, parseBoolean)
+        prefixFns.Add(TokenType.TRUE, parseBooleanLiteral)
+        prefixFns.Add(TokenType.FALSE, parseBooleanLiteral)
         prefixFns.Add(TokenType.LPAREN, parseGroupedExpression)
+        prefixFns.Add(TokenType.LT, parse2aryPrefixExpression)
+        prefixFns.Add(TokenType.GT, parse2aryPrefixExpression)
+        //prefixFns.Add(TokenType.LT, parsePrefixExpression)
+        //prefixFns.Add(TokenType.GT, parsePrefixExpression)
         // prefixFns.Add(TokenType.IF, parseIfExpression)
         // prefixFns.Add(TokenType.FUNCTION, parseFunctionLiteral)
-        // prefixFns.Add(TokenType.STRING, parseStringLiteral)
+        prefixFns.Add(TokenType.STRING, parseStringLiteral)
         // prefixFns.Add(TokenType.LBRACKET, parseArrayLiteral)
         // prefixFns.Add(TokenType.LBRACE, parseHashLiteral)
 
@@ -377,9 +471,19 @@ module Objs =
         {
             value: double
         }
+    type Boolean =
+        {
+            value: bool
+        }
+    type Error =
+        {
+            msg: string
+        }
     and Objects =
     | Int32Obj of Integer32
     | DoubleObj of Double
+    | BoolObj of Boolean
+    | ErrorObj of Error
 
     let printObj (obj: Objects) =
         match obj with
@@ -387,9 +491,19 @@ module Objs =
             sprintf "%d" int.value
         | DoubleObj dbl ->
             sprintf "%f" dbl.value
+        | BoolObj bol ->
+            if bol.value then "#t" else "#f"
+        | ErrorObj err ->
+            err.msg
 
 module Evaluation =
     open Objs
+
+    type PrefixCase =
+    | Twoary
+    | Nary
+    | Unsupported
+        
 
     let evalIntegerPrefixes operator results =
         let mutable running = 
@@ -478,12 +592,34 @@ module Evaluation =
             Int32Obj { value = i32.value }
         | Ast.Double dbl ->
             DoubleObj { value = dbl.value }
+        | Ast.Boolean bol ->
+            BoolObj { value = bol.value }
         | Ast.PrefixExpr pe ->
             evalPrefixExpr pe
         | Ast.Program program ->
             evalProgram program
     
     and evalPrefixExpr (pe: Ast.PrefixExpression) =
+
+
+        let prefixCase =
+            match pe.operator with
+            | "+" -> Nary
+            | "-" -> Nary
+            | "*" -> Nary
+            | "/" -> Nary
+            | ">" -> Twoary
+            | "<" -> Twoary
+            | _ -> Unsupported
+
+        match prefixCase with
+        | Nary -> evalNaryPrefixExpression pe
+        | Twoary -> evalTwoaryPrefixExpression pe
+        | Unsupported -> 
+            let errorMsg = sprintf "%s is an unsupported operator" pe.operator
+            ErrorObj { msg = errorMsg }
+
+    and evalNaryPrefixExpression (pe: Ast.PrefixExpression) =
         let results = new ResizeArray<Objs.Objects>()
         
         let mutable hasDouble = false
@@ -503,39 +639,26 @@ module Evaluation =
             evalDoublePrefixes pe.operator results
         else
             evalIntegerPrefixes pe.operator results
-        //determine whether list has doubles or ints
-        
-        // let mutable running = 
-        //     match operator with
-        //     | "+" -> 0
-        //     | "-" -> 0
-        //     | "*" -> 1
-        //     | "/" -> 1
-        //     | _ -> 0 //return error instead of 0 since we don't want bad operators
+    
+    and evalTwoaryPrefixExpression (pe: Ast.PrefixExpression) =
+        if pe.values.Length = 2 then
+            let firstResult = eval pe.values.[0]
+            let secondResult = eval pe.values.[1]
 
-        // let mutable isFirstLoop = true
-        // for re in results do 
-        //     match operator, re with 
-        //     | "+", Int32Obj num ->
-        //         running <- running + num.value
-        //         ()
-        //     | "*", Int32Obj num ->
-        //         running <- running * num.value
-        //     | "-", Int32Obj num ->
-        //         if isFirstLoop then
-        //             running <- num.value
-        //         else
-        //             running <- running - num.value
-        //     | "/", Int32Obj num ->
-        //         if isFirstLoop then
-        //             running <- num.value
-        //         else
-        //             running <- running / num.value
-        //     | _ -> ()
+            match pe.operator, firstResult, secondResult with
+            | "<", Int32Obj first, Int32Obj second ->
+                BoolObj { value = first.value < second.value }
+            | "<", DoubleObj first, DoubleObj second ->
+                BoolObj { value = first.value < second.value }
+            | ">", Int32Obj first, Int32Obj second ->
+                BoolObj { value = first.value > second.value }
+            | ">", DoubleObj first, DoubleObj second ->
+                BoolObj { value = first.value > second.value }
+            | _, _, _ -> ErrorObj { msg = "Bad operator and/or type for prefix expression" }
+        else
+            let msg = sprintf "%s operator requires 2 expressions, but only %d given." pe.operator pe.values.Length
+            ErrorObj { msg = "<random error>"}
 
-        //     isFirstLoop <- false //hacky mechanism
-        
-        // Int32Obj { value = running }
     
     and evalProgram program =
         //this is junky, find a better way to only return the last one
@@ -546,7 +669,12 @@ module Evaluation =
             results.Add(eval expr)
             ()
         
-        results.[results.Count - 1]
+        if results.Count > 1 then
+            results.[results.Count - 1]
+        else if results.Count = 1 then
+            results.[0]
+        else
+            ErrorObj { msg = "Program did not produce any evaluated expressions" }
 
 
 

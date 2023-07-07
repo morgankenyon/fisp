@@ -8,10 +8,22 @@ open Fisp.Library.Objs
 open Fisp.Library.Evaluation
 
 let evaluate input =
-    let program = 
+    let parser = 
         createLexer input
         |> createParser
+
+    let program =
+        parser
         |> parseProgram
+
+    
+    let errorMessage =  
+        if parser.errors.Count > 0 then 
+            let error = parser.errors.ToArray() |> Array.reduce (fun a b -> sprintf "%s\n%s" a b)
+            error
+        else ""
+    
+    Assert.True(0 = parser.errors.Count, errorMessage)
     
     evaluate program
 
@@ -24,49 +36,49 @@ let canAssertDoubleWithPrecision precision expected result =
 let canAssertDouble expected result =
     canAssertDoubleWithPrecision 5 expected result
 
+let canAssertBoolean expected result =
+    match result with
+    | BoolObj bol ->
+        Assert.Equal(expected, bol.value)
+    | _ -> Assert.True(false, "Wrong type returned from evaluate")
+
+let canAssertErrorMsg expected result =
+    match result with
+    | ErrorObj err ->
+        Assert.Equal(expected, err.msg)
+    | _ -> Assert.True(false, "Expecting error from evaluate")
+
+
 [<Theory>]
 [<InlineData("5", 5)>]
 let ``Can test integer values`` input expected =
-    let result = evaluate input
+   let result = evaluate input
 
-    match result with
-    | Int32Obj i32 ->
-        Assert.Equal(expected, i32.value)
-    | _ -> Assert.True(false, "Wrong type returned from evaluate")
+   match result with
+   | Int32Obj i32 ->
+       Assert.Equal(expected, i32.value)
+   | _ -> Assert.True(false, "Wrong type returned from evaluate")
 
 [<Theory>]
 [<InlineData("+ 5 10", 15)>]
-[<InlineData("+ (+ 5 10) (+ 15 20))", 50)>]
+[<InlineData("(+ (+ 5 10) (+ 15 20))", 50)>]
 [<InlineData("* 5 10", 50)>]
 [<InlineData("(* 5 10)", 50)>]
-[<InlineData("* (* 5 10) (* 15 20))", 15000)>]
+[<InlineData("(* (* 5 10) (* 15 20))", 15000)>]
 [<InlineData("- 5 10", -5)>]
 [<InlineData("(- 5 10)", -5)>]
-[<InlineData("- (- 100 10) (- 15 20))", 95)>]
+[<InlineData("(- (- 100 10) (- 15 20))", 95)>]
 [<InlineData("/ 10 5", 2)>]
 [<InlineData("(/ 10 5)", 2)>]
-[<InlineData("/ (/ 100 5) (/ 30 15))", 10)>]
+[<InlineData("(/ (/ 100 5) (/ 30 15))", 10)>]
 [<InlineData("(+ (/ 20 2) (* 5 5) (- 10 5))", 40)>]
 let ``Can test integer formulas`` input expected =
-    let result = evaluate input
+   let result = evaluate input
 
-    match result with
-    | Int32Obj i32 ->
-        Assert.Equal(expected, i32.value)
-    | _ -> Assert.True(false, "Wrong type returned from evaluate")
-
-//[<Theory>]
-//[<InlineData("+ 23.78 33.58", 57.36)>]
-//[<InlineData("- 88.14 67.32", 20.82)>]
-//[<InlineData("* 202.11 600.22", 121310.4642)>]
-//[<InlineData("/ 2344.288 22.33", 104.983788625)>]
-//let ``Can test double formulas`` input expected =
-//    let result = evaluate input
-
-//    match result with
-//    | DoubleObj dbl ->
-//        Assert.Equal(expected, dbl.value, 5)
-//    | _ -> Assert.True(false, "Wrong type returned from evaluate")
+   match result with
+   | Int32Obj i32 ->
+       Assert.Equal(expected, i32.value)
+   | _ -> Assert.True(false, "Wrong type returned from evaluate")
 
 [<Theory>]
 [<InlineData("+ 1 23.0", 24.0)>]
@@ -74,7 +86,34 @@ let ``Can test integer formulas`` input expected =
 [<InlineData("* 1 23.0", 23.0)>]
 [<InlineData("/ 23.0 2", 11.5)>]
 let ``Can test arithmetic for mixed expressions`` input expected =
-    let result = evaluate input
+   let result = evaluate input
 
-    canAssertDouble expected result
+   canAssertDouble expected result
 
+[<Theory>]
+[<InlineData("#t", true)>]
+[<InlineData("#f", false)>]
+let ``Can test boolean literals`` input expected =
+   let result = evaluate input
+
+   canAssertBoolean expected result
+
+[<Theory>]
+[<InlineData("#t", "#t")>]
+[<InlineData("#f", "#f")>]
+let ``Can print out boolean literals correctly`` input expected =
+   let result = evaluate input
+
+   let objStr = Objs.printObj result
+
+   Assert.Equal(expected, objStr)
+
+[<Theory>]
+[<InlineData("(< 2 4)", true)>]
+[<InlineData("(< 4 2)", false)>]
+[<InlineData("(> 4 2)", true)>]
+[<InlineData("(> 2 4)", false)>]
+let ``Can test simple boolean expressions`` input expected =
+   let result = evaluate input
+
+   canAssertBoolean expected result

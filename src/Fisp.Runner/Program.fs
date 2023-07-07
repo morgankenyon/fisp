@@ -4,16 +4,24 @@ open System.IO
 open Fisp.Library
 let evaluateInput input =
     
-    let program = 
+    let parser = 
         Lexer.createLexer input
         |> Parser.createParser
-        |> Parser.parseProgram
+
+    let program =
+        Parser.parseProgram parser
+
+    if parser.errors.Capacity > 0 then
+        printfn "Errors present after parsing"
+        for e in parser.errors do
+            printfn "   %s" e
+    else
     
-    let evals = Evaluation.evaluate program
+        let evals = Evaluation.evaluate program
 
-    let str = Objs.printObj evals
+        let str = Objs.printObj evals
 
-    printfn "%s" str
+        printfn "%s" str
 
 [<EntryPoint>]
 let main argv =
