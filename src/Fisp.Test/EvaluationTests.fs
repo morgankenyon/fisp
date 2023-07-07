@@ -48,16 +48,21 @@ let canAssertErrorMsg expected result =
         Assert.Equal(expected, err.msg)
     | _ -> Assert.True(false, "Expecting error from evaluate")
 
+let canAssertStr expected result =
+    match result with
+    | StrObj str ->
+        Assert.Equal(expected, str.value)
+    | _ -> Assert.True(false, "Expecting Str, received another type")
 
 [<Theory>]
 [<InlineData("5", 5)>]
 let ``Can test integer values`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   match result with
-   | Int32Obj i32 ->
-       Assert.Equal(expected, i32.value)
-   | _ -> Assert.True(false, "Wrong type returned from evaluate")
+  match result with
+  | Int32Obj i32 ->
+      Assert.Equal(expected, i32.value)
+  | _ -> Assert.True(false, "Wrong type returned from evaluate")
 
 [<Theory>]
 [<InlineData("+ 5 10", 15)>]
@@ -73,12 +78,12 @@ let ``Can test integer values`` input expected =
 [<InlineData("(/ (/ 100 5) (/ 30 15))", 10)>]
 [<InlineData("(+ (/ 20 2) (* 5 5) (- 10 5))", 40)>]
 let ``Can test integer formulas`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   match result with
-   | Int32Obj i32 ->
-       Assert.Equal(expected, i32.value)
-   | _ -> Assert.True(false, "Wrong type returned from evaluate")
+  match result with
+  | Int32Obj i32 ->
+      Assert.Equal(expected, i32.value)
+  | _ -> Assert.True(false, "Wrong type returned from evaluate")
 
 [<Theory>]
 [<InlineData("+ 1 23.0", 24.0)>]
@@ -86,27 +91,27 @@ let ``Can test integer formulas`` input expected =
 [<InlineData("* 1 23.0", 23.0)>]
 [<InlineData("/ 23.0 2", 11.5)>]
 let ``Can test arithmetic for mixed expressions`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   canAssertDouble expected result
+  canAssertDouble expected result
 
 [<Theory>]
 [<InlineData("#t", true)>]
 [<InlineData("#f", false)>]
 let ``Can test boolean literals`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   canAssertBoolean expected result
+  canAssertBoolean expected result
 
 [<Theory>]
 [<InlineData("#t", "#t")>]
 [<InlineData("#f", "#f")>]
 let ``Can print out boolean literals correctly`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   let objStr = Objs.printObj result
+  let objStr = Objs.printObj result
 
-   Assert.Equal(expected, objStr)
+  Assert.Equal(expected, objStr)
 
 [<Theory>]
 [<InlineData("(< 2 4)", true)>]
@@ -114,6 +119,13 @@ let ``Can print out boolean literals correctly`` input expected =
 [<InlineData("(> 4 2)", true)>]
 [<InlineData("(> 2 4)", false)>]
 let ``Can test simple boolean expressions`` input expected =
-   let result = evaluate input
+  let result = evaluate input
 
-   canAssertBoolean expected result
+  canAssertBoolean expected result
+
+[<Theory>]
+[<InlineData("\"Hello world\"", "Hello world")>]
+let ``Can evaluate a simple string`` input expected =
+    let result = evaluate input
+
+    canAssertStr expected result

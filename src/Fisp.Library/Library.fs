@@ -479,11 +479,16 @@ module Objs =
         {
             msg: string
         }
+    type String =
+        {
+            value: string
+        }
     and Objects =
     | Int32Obj of Integer32
     | DoubleObj of Double
     | BoolObj of Boolean
     | ErrorObj of Error
+    | StrObj of String
 
     let printObj (obj: Objects) =
         match obj with
@@ -493,6 +498,8 @@ module Objs =
             sprintf "%f" dbl.value
         | BoolObj bol ->
             if bol.value then "#t" else "#f"
+        | StrObj str ->
+            str.value
         | ErrorObj err ->
             err.msg
 
@@ -594,6 +601,8 @@ module Evaluation =
             DoubleObj { value = dbl.value }
         | Ast.Boolean bol ->
             BoolObj { value = bol.value }
+        | Ast.String str ->
+            StrObj { value = str.value }
         | Ast.PrefixExpr pe ->
             evalPrefixExpr pe
         | Ast.Program program ->

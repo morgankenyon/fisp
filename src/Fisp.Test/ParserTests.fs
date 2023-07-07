@@ -240,3 +240,9 @@ let ``Can parse string`` () =
     let expr = canAssertBasicItems input
 
     assertString "Hello world" expr
+
+//[<Fact>] //probably should be an error
+let ``Can bad expression give error`` () =
+    let input = "(+ 1 \"Hello world\")"
+
+    canAssertParserErrorsPresent input
