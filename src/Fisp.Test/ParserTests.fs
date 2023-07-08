@@ -43,23 +43,21 @@ let assert2aryIntPrefixExpr (expr: Ast.AstExpr) operator firstNum secondNum =
     match expr with
     | Ast.PrefixExpr pe ->
         Assert.Equal(operator, pe.operator)
-        Assert.Equal(2, pe.values.Length)
 
-        let first = pe.values.[0]
-        let second = pe.values.[1]
+        let first = pe.firstValue
+        let second = pe.secondValue
 
         assertInt32 firstNum first
         assertInt32 secondNum second
-
     | _ -> Assert.True(false, "Wrong expression type returned from test")
+
 let assert2aryDoublePrefixExpr (expr: Ast.AstExpr) operator firstNum secondNum =
     match expr with
     | Ast.PrefixExpr pe ->
         Assert.Equal(operator, pe.operator)
-        Assert.Equal(2, pe.values.Length)
 
-        let first = pe.values.[0]
-        let second = pe.values.[1]
+        let first = pe.firstValue
+        let second = pe.secondValue
 
         assertDouble firstNum first
         assertDouble secondNum second
@@ -99,6 +97,18 @@ let canAssertParserErrorsPresent input =
 
     Assert.False(0 = parser.errors.Count, "Was expecting errors from expressions, but none present")
 
+let canAssertParserError input expected =
+    let lexer = createLexer input
+    let parser = createParser lexer
+    let program = parseProgram parser
+
+    let msg = sprintf "Was expecting 1 parser error, got %d" parser.errors.Count
+    Assert.True(1 = parser.errors.Count, msg)
+
+    let error = parser.errors.[0]
+
+    Assert.Equal(expected, error)
+
 [<Theory>]
 [<InlineData("+ 5 10", "+", 5, 10)>]
 [<InlineData("- 5 10", "-", 5, 10)>]
@@ -109,27 +119,31 @@ let ``Can parse simple arithmetic expression`` input op firstNum secondNum =
 
     assert2aryIntPrefixExpr expression op firstNum secondNum
 
-[<Fact>]
-let ``Can parse more complex plus expression`` () =
-    let input = "+ 5 10 15 20"
+// [<Fact>]
+// let ``Can parse more complex plus expression`` () =
+//     let input = "+ 5 10 15 20"
 
-    let expression = canAssertBasicItems input
+//     let expression = canAssertBasicItems input
 
-    match expression with
-    | Ast.PrefixExpr pe ->
-        Assert.Equal("+", pe.operator)
-        Assert.Equal(4, pe.values.Length)
+//     match expression with
+//     | Ast.PrefixExpr pe ->
+//         Assert.Equal("+", pe.operator)
+//         Assert.Equal(4, pe.values.Length)
 
-        let five = pe.values.[0]
-        let ten = pe.values.[1]
-        let fifteen = pe.values.[2]
-        let twenty = pe.values.[3]
+//         let five = pe.values.[0]
+//         let ten = pe.values.[1]
+//         let fifteen = pe.values.[2]
+//         let twenty = pe.values.[3]
 
-        assertInt32 5 five
-        assertInt32 10 ten
-        assertInt32 15 fifteen
-        assertInt32 20 twenty
-    | _ -> Assert.True(false, "Wrong expression type returned from test")
+//         assertInt32 5 five
+//         assertInt32 10 ten
+//         assertInt32 15 fifteen
+//         assertInt32 20 twenty
+//     | _ -> Assert.True(false, "Wrong expression type returned from test")
+[<Theory>]
+[<InlineData("+ 1 2 3", "Error: + operator requires 2 expressions, 3 given.")>]
+let ``Can 3 or more expressions generate error`` input expected =
+    canAssertParserError input expected
 
 [<Fact>]
 let ``Can handle parenthesis in expression`` () =
@@ -140,7 +154,6 @@ let ``Can handle parenthesis in expression`` () =
     match expression with
     | Ast.PrefixExpr pe ->
         Assert.Equal("+", pe.operator)
-        Assert.Equal(2, pe.values.Length)
     | _ -> Assert.True(false, "Wrong expression type returned from test")
 
 [<Fact>]
@@ -152,11 +165,10 @@ let ``Can handle grouped expression`` () =
     match expression with
     | Ast.PrefixExpr pe ->
         Assert.Equal("+", pe.operator)
-        Assert.Equal(2, pe.values.Length)
 
         
-        let five = pe.values.[0]
-        let subgroup = pe.values.[1]
+        let five = pe.firstValue
+        let subgroup = pe.secondValue
 
         assertInt32 5 five
         Assert.True(isPrefixExpr subgroup)
@@ -171,11 +183,9 @@ let ``Can handle multi grouped expression`` () =
     match expression with
     | Ast.PrefixExpr pe ->
         Assert.Equal("+", pe.operator)
-        Assert.Equal(2, pe.values.Length)
-
         
-        let firstSubGroup = pe.values.[0]
-        let secondSubGroup = pe.values.[1]
+        let firstSubGroup = pe.firstValue
+        let secondSubGroup = pe.secondValue
 
         Assert.True(isPrefixExpr firstSubGroup)
         Assert.True(isPrefixExpr secondSubGroup)
@@ -190,11 +200,10 @@ let ``Can handle multi type grouped expression`` () =
     match expression with
     | Ast.PrefixExpr pe ->
         Assert.Equal("-", pe.operator)
-        Assert.Equal(2, pe.values.Length)
 
         
-        let firstSubGroup = pe.values.[0]
-        let secondSubGroup = pe.values.[1]
+        let firstSubGroup = pe.firstValue
+        let secondSubGroup = pe.secondValue
 
         assert2aryIntPrefixExpr firstSubGroup "*" 5 10
         assert2aryIntPrefixExpr secondSubGroup "/" 15 20

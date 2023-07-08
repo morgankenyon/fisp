@@ -1,12 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Lexer.fs" />
+    <Compile Include="Ast.fs" />
+    <Compile Include="Parser.fs" />
+    <Compile Include="Objs.fs" />
+    <Compile Include="Evaluation.fs" />
   </ItemGroup>
-
 </Project>

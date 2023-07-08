@@ -76,7 +76,7 @@ let ``Can test integer values`` input expected =
 [<InlineData("/ 10 5", 2)>]
 [<InlineData("(/ 10 5)", 2)>]
 [<InlineData("(/ (/ 100 5) (/ 30 15))", 10)>]
-[<InlineData("(+ (/ 20 2) (* 5 5) (- 10 5))", 40)>]
+[<InlineData("(+ (/ 20 2) (* 5 5))", 35)>]
 let ``Can test integer formulas`` input expected =
   let result = evaluate input
 
@@ -86,14 +86,14 @@ let ``Can test integer formulas`` input expected =
   | _ -> Assert.True(false, "Wrong type returned from evaluate")
 
 [<Theory>]
-[<InlineData("+ 1 23.0", 24.0)>]
-[<InlineData("- 23.283 1", 22.283)>]
-[<InlineData("* 1 23.0", 23.0)>]
-[<InlineData("/ 23.0 2", 11.5)>]
-let ``Can test arithmetic for mixed expressions`` input expected =
+[<InlineData("+ 1 23.0")>]
+[<InlineData("- 23.283 1")>]
+[<InlineData("* 1 23.0")>]
+[<InlineData("/ 23.0 2")>]
+let ``Can assert mixed types returns errors`` input =
   let result = evaluate input
 
-  canAssertDouble expected result
+  canAssertErrorMsg "Bad operator and/or type for prefix expression" result
 
 [<Theory>]
 [<InlineData("#t", true)>]
@@ -129,3 +129,11 @@ let ``Can evaluate a simple string`` input expected =
     let result = evaluate input
 
     canAssertStr expected result
+
+[<Theory>]
+[<InlineData("/ 10 0")>]
+[<InlineData("/ 10.0 0.0")>]
+let ``Will divide by zero throw exception`` input =
+    let result = evaluate input
+
+    canAssertErrorMsg "Error: Cannot divide by 0." result
