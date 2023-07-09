@@ -21,6 +21,8 @@ module Lexer =
         //delimiters
         | LPAREN
         | RPAREN
+        | LBRACE
+        | RBRACE
 
     type ComplexTokenType =
         | Digit
@@ -144,6 +146,8 @@ module Lexer =
             | '"' -> 
                 let literal = readString l
                 (TokenType.STRING, literal)
+            | '{' -> (TokenType.LBRACE, l.ch.ToString())
+            | '}' -> (TokenType.RBRACE, l.ch.ToString())
             // | '!' ->
             //     let nextChar = peekChar l
             //     match nextChar with
@@ -154,8 +158,6 @@ module Lexer =
             //     | _ -> (TokenType.BANG, l.ch.ToString())
             // | ',' -> (TokenType.COMMA, l.ch.ToString())
             // | ';' -> (TokenType.SEMICOLON, l.ch.ToString())
-            // | '{' -> (TokenType.LBRACE, l.ch.ToString())
-            // | '}' -> (TokenType.RBRACE, l.ch.ToString())
             // | '[' -> (TokenType.LBRACKET, l.ch.ToString())
             // | ']' -> (TokenType.RBRACKET, l.ch.ToString())
             // | ':' -> (TokenType.COLON, l.ch.ToString())

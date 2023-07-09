@@ -64,6 +64,11 @@ let assert2aryDoublePrefixExpr (expr: Ast.AstExpr) operator firstNum secondNum =
 
     | _ -> Assert.True(false, "Wrong expression type returned from test")
 
+let assertQExpression (expr: Ast.AstExpr) =
+    match expr with
+    | Ast.QExpression with
+    | _ -> Assert.True(false, "Wrong expression type returned from test")
+
 let canAssertBasicItems input =
     let lexer = createLexer input
     let parser = createParser lexer
@@ -108,6 +113,7 @@ let canAssertParserError input expected =
     let error = parser.errors.[0]
 
     Assert.Equal(expected, error)
+
 
 [<Theory>]
 [<InlineData("+ 5 10", "+", 5, 10)>]
@@ -255,3 +261,10 @@ let ``Can bad expression give error`` () =
     let input = "(+ 1 \"Hello world\")"
 
     canAssertParserErrorsPresent input
+
+let ``Can parse q-expression`` () =
+    let input = "{1 2 3 4}"
+
+    let expr = canAssertBasicItems input
+
+    assertQExpression

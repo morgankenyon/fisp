@@ -225,3 +225,19 @@ let ``Can lex escaped string`` () =
 
     canAssertLexing input expectedTokensRaw
 
+[<Fact>]
+let ``Can lex q-expression`` () =
+    let input = "{1 2 3 4}"
+
+    let exTokens = 
+        [
+            (LBRACE, "{");
+            (INT, "1");
+            (INT, "2");
+            (INT, "3");
+            (INT, "4");
+            (RBRACE, "}");
+            (EOF, "");
+        ]
+
+    canAssertLexing input exTokens

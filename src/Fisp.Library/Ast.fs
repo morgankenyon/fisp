@@ -4,17 +4,17 @@ module Ast =
     open Lexer
     type Integer32 = 
         {
-            token: Token;
+            token: Token
             value: int32
         }
     type Double =
         {
-            token: Token;
+            token: Token
             value: double
         }
     type Boolean =
         {
-            token: Token;
+            token: Token
             value: bool
         }
     type Str =
@@ -24,10 +24,15 @@ module Ast =
         }
     and PrefixExpression = 
         {
+            token: Token
+            operator: string
+            firstValue: AstExpr
+            secondValue: AstExpr
+        }
+    and QExpression =
+        {
             token: Token;
-            operator: string;
-            firstValue: AstExpr;
-            secondValue: AstExpr;
+            expr: AstExpr
         }
     // and ExpressionStatement(token: Token, expression: AstExpr) =
     //     member this.token = token
